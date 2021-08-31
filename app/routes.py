@@ -1,10 +1,16 @@
-import datetime
+#import datetime
 import sqlite3
 import symbl
-import time
+import time as t
 import json
 import os
 from werkzeug.utils import secure_filename
+from datetime import time
+from datetime import date
+from datetime import datetime
+from datetime import timedelta
+import json
+import enum
 
 from flask import render_template, redirect, url_for, abort, request, jsonify, flash
 from app.forms import TestCycleForm, TestItemForm, TestItemUpdateForm, TestCycleUpdateForm
@@ -12,8 +18,29 @@ from app.forms import TestCycleForm, TestItemForm, TestItemUpdateForm, TestCycle
 from app import app
 
 
+def to_serializable(val):
+    """JSON serializer for objects not serializable by default"""
+
+    if isinstance(val, (datetime, date, time)):
+        return val.isoformat()
+    elif isinstance(val, enum.Enum):
+        return val.value
+    elif hasattr(val, '__dict__'):
+        return val.__dict__
+
+    return val
+
+
+def to_json(data):
+    """Converts object to JSON formatted string"""
+
+    return json.dumps(data, default=to_serializable)
+
+
 def get_db_connection():
-    conn = sqlite3.connect('C:\\Users\\ameet\\PycharmProjects\\thnkloudr\\db\\thnkloudr.db')
+    dbpath = app.root_path + '\\db\\' + app.config['DB_NAME']
+    #print(dbpath)
+    conn = sqlite3.connect(dbpath)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -21,7 +48,7 @@ def get_db_connection():
 @app.context_processor
 def utility_processor():
     def convert_epoch_to_date(epoch):
-        return datetime.datetime.fromtimestamp(epoch).strftime('%Y-%m-%d')
+        return datetime.fromtimestamp(epoch).strftime('%Y-%m-%d')
 
     return dict(convert_time=convert_epoch_to_date)
 
@@ -47,14 +74,13 @@ def testcycle(testcycleid):
     cur.execute("select * from TestCycle where testcycleid=?", [testcycleid])
     row = cur.fetchone()
     # print(row)
-    if row is not None:
-        cur.execute("select * from Test where testcycleid=?", [testcycleid])
-        test_row = cur.fetchall()
-        conn.close()
-        return render_template('testpage.html', title='Test Cycle', row=row, test_row=test_row)
-    else:
-        conn.close()
+    if row is None:
         abort(404)
+    cur.execute("select * from Test where testcycleid=? order by lastupdate DESC", [testcycleid])
+    test_row = cur.fetchall()
+    conn.close()
+    return render_template('testpage.html', title='Test Cycle', row=row, test_row=test_row)
+
 
 
 @app.errorhandler(404)
@@ -70,12 +96,12 @@ def test(testid):
     cur.execute("select * from Test where testid=?", [testid])
     row = cur.fetchone()
     # print(row)
-    if row is not None:
-        conn.close()
-        return render_template('testitem.html', title='Test Item', row=row)
-    else:
-        conn.close()
+    if row is None:
         abort(404)
+    #print(row['conversationid'])
+    conn.close()
+    return render_template('testitem.html', title='Test Item', row=row)
+
 
 
 @app.route('/createtestcycle', methods=['GET', 'POST'])
@@ -99,8 +125,8 @@ def createtestcycle():
                       form.projectdesc.data,
                       form.trellolink.data,
                       filename,
-                      int(time.time()),
-                      int(time.time()))
+                      int(t.time()),
+                      int(t.time()))
         cur.execute(sqlstmt, data_tuple)
         conn.commit()
         last_id = cur.lastrowid
@@ -120,7 +146,7 @@ def createtestcycle():
             if filename:
                 form.testcycleimage.data.save(path + '\\' + filename)
                 filepath = 'uploads/' + app.config['TESTCYCLE_PREFIX'] + str(last_id) + '/' + filename
-                cur.execute("update TestCycle set imageurl=?,lasupdate=? where testcycleid=?", [filepath, int(time.time()), last_id])
+                cur.execute("update TestCycle set imageurl=?,lasupdate=? where testcycleid=?", [filepath, int(t.time()), last_id])
                 conn.commit()
         except OSError as error:
             flash("Directory {} can not be created. Contact Administrator. Error message: {}".format(path, error))
@@ -156,8 +182,8 @@ def createtestitem(testcycleid):
         data_tuple = (form.testitemname.data,
                       form.testitemdesc.data,
                       row['testcycleid'],
-                      int(time.time()),
-                      int(time.time()),
+                      int(t.time()),
+                      int(t.time()),
                       filename,
                       conversationid)
         cur.execute(sqlstmt, data_tuple)
@@ -178,7 +204,7 @@ def createtestitem(testcycleid):
                 form.testvideo.data.save(path + '\\' + filename)
                 filepath = 'uploads/' + app.config['TESTITEM_PREFIX'] + str(last_id) + '/' + filename
                 cur.execute("update Test set testvideourl=?,lastupdate=? where testid=?",
-                            [filepath, int(time.time()), last_id])
+                            [filepath, int(t.time()), last_id])
                 conn.commit()
         except OSError as error:
             flash("Directory {} can not be created. Contact Administrator. Error message: {}".format(path, error))
@@ -203,7 +229,7 @@ def edittestitem(testid):
         filename = secure_filename(form.testvideo.data.filename) if form.testvideo.data else None
         print(filename)
         cur.execute("update Test set testname=?, testdescription=?, lastupdate=? where testid=?",
-                    [form.testitemname.data, form.testitemdesc.data, int(time.time()), row['testid']])
+                    [form.testitemname.data, form.testitemdesc.data, int(t.time()), row['testid']])
         conn.commit()
         if filename:
             target_directory = app.config['TESTITEM_PREFIX'] + str(row['testid'])
@@ -211,10 +237,14 @@ def edittestitem(testid):
             parent_directory = app.static_folder + '\\uploads\\'
             print(parent_directory)
             path = os.path.join(parent_directory, target_directory)
+            mode = 0o777
+            if not os.path.isdir(path):
+                os.makedirs(path, mode, exist_ok=True)
             form.testvideo.data.save(path + '\\' + filename)
             filepath = 'uploads/' + app.config['TESTITEM_PREFIX'] + str(row['testid']) + '/' + filename
-            cur.execute("update Test set testvideourl=?,lastupdate=? where testid=?",
-                        [filepath, int(time.time()), row['testid']])
+            conversationid=None
+            cur.execute("update Test set testvideourl=?,lastupdate=?,conversationid=? where testid=?",
+                        [filepath, int(t.time()), conversationid, row['testid']])
             conn.commit()
         # flash('Your changes have been saved.')
         return redirect(url_for('test', testid=testid))
@@ -240,7 +270,7 @@ def edittestcycle(testcycleid):
         filename = secure_filename(form.testcycleimage.data.filename) if form.testcycleimage.data else None
         #print(filename)
         cur.execute("update TestCycle set testcyclename=?, description=?, project=?, projectdescription=?, trellolink=?, lastupdate=? where testcycleid=?",
-                    [form.testcyclename.data, form.testcycledesc.data, form.projectname.data, form.projectdesc.data,form.trellolink.data, int(time.time()), row['testcycleid']])
+                    [form.testcyclename.data, form.testcycledesc.data, form.projectname.data, form.projectdesc.data,form.trellolink.data, int(t.time()), row['testcycleid']])
         conn.commit()
         if filename:
             target_directory = app.config['TESTCYCLE_PREFIX'] + str(row['testcycleid'])
@@ -248,10 +278,13 @@ def edittestcycle(testcycleid):
             parent_directory = app.static_folder + '\\uploads\\'
             print(parent_directory)
             path = os.path.join(parent_directory, target_directory)
+            mode = 0o777
+            if not os.path.isdir(path):
+                os.makedirs(path, mode, exist_ok=True)
             form.testcycleimage.data.save(path + '\\' + filename)
             filepath = 'uploads/' + app.config['TESTCYCLE_PREFIX'] + str(row['testcycleid']) + '/' + filename
             cur.execute("update TestCycle set imageurl=?,lastupdate=? where testcycleid=?",
-                        [filepath, int(time.time()), row['testcycleid']])
+                        [filepath, int(t.time()), row['testcycleid']])
             conn.commit()
         # flash('Your changes have been saved.')
         return redirect(url_for('testcycle', testcycleid=testcycleid))
@@ -267,6 +300,64 @@ def edittestcycle(testcycleid):
     cur.close()
     conn.close()
     return render_template('edit_test_cycle.html', title='Edit Test Cycle', form=form)
+
+
+@app.route('/generatedata', methods=['GET', 'POST'])
+def generatedata():
+    #print(url_for('static'))
+    print(request.form['data'])
+    print(request.form['generate_data'])
+    #print(request.args.get('testid'))
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("select * from Test where testid=?", [request.form['data']])
+    row = cur.fetchone()
+    print(row['testvideourl'])
+    print(row['conversationid'])
+    if request.method == 'POST':
+        if row['conversationid'] is None or request.form['generate_data'] == 'true':
+            #print()
+            target_directory = app.config['TESTITEM_PREFIX'] + str(row['testid']) + '\\'
+            #print(target_directory)
+            parent_directory = app.static_folder + '\\uploads\\'
+            #print(parent_directory)
+            path = os.path.join(parent_directory, target_directory, row['testvideourl'].split('/')[-1])
+            print(path)
+            #path = app.static_folder + '\\uploads\\' + app.config['TESTITEM_PREFIX'] + request.form[
+            #    'data'] + '\\' + 'Telegram.mp4'
+            local_path = r'{}'.format(path)
+            conversation_object = symbl.Video.process_file(
+                file_path=local_path
+            )
+            conv_id = conversation_object.get_conversation_id()
+            cur.execute("update Test set conversationid=?,lastupdate=? where testid=?",
+                        [conv_id, int(t.time()), row['testid']])
+            conn.commit()
+            message_list = json.loads(to_json(conversation_object.get_messages().messages))
+            topics_list = json.loads(to_json(conversation_object.get_topics().topics))
+            action_items = json.loads(to_json(conversation_object.get_action_items().action_items))
+            follow_ups = json.loads(to_json(conversation_object.get_follow_ups().follow_ups))
+            questions = json.loads(to_json(conversation_object.get_questions().questions))
+
+        else:
+            #pass
+            message_list = symbl.Conversations.get_messages(conversation_id=row['conversationid'])
+            topics_list = symbl.Conversations.get_topics(conversation_id=row['conversationid'])
+            #print(message_list)
+            follow_ups = symbl.Conversations.get_follow_ups(conversation_id=row['conversationid'])
+            action_items = symbl.Conversations.get_action_items(conversation_id=row['conversationid'])
+            questions = symbl.Conversations.get_questions(conversation_id=row['conversationid'])
+            message_list = json.loads(to_json(message_list.messages))
+            topics_list = json.loads(to_json(topics_list.topics))
+            action_items = json.loads(to_json(action_items.action_items))
+            follow_ups = json.loads(to_json(follow_ups.follow_ups))
+            questions = json.loads(to_json(questions.questions))
+
+    #print(message_list)
+    #print(topics_list)
+    cur.close()
+    conn.close()
+    return jsonify({'messages': message_list, 'topics': topics_list, 'actions':action_items, 'follow_ups':follow_ups, 'questions':questions})
 
 
 

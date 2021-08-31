@@ -29,7 +29,7 @@ class TestItemForm(FlaskForm):
 
 class TestItemUpdateForm(FlaskForm):
     testitemname = StringField('Test Name', validators=[DataRequired(), Length(min=0, max=40)])
-    testitemdesc = StringField('Test Cycle Description', validators=[DataRequired(), Length(min=0, max=150)])
+    testitemdesc = StringField('Test Cycle Description', validators=[DataRequired(), Length(min=0, max=300)])
     testvideo = FileField('Upload Video', validators=[
         FileAllowed(['mp4'], 'mp4 files only')
     ])

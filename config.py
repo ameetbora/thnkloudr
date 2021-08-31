@@ -6,3 +6,4 @@ class Config(object):
     UPLOAD_FOLDER = '/uploads'
     TESTCYCLE_PREFIX = 'TestCycle_'
     TESTITEM_PREFIX = 'Test_'
+    DB_NAME = 'thnkloudr.db'
