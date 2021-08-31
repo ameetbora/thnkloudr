@@ -1,4 +1,4 @@
-#import datetime
+# import datetime
 import sqlite3
 import symbl
 import time as t
@@ -11,6 +11,7 @@ from datetime import datetime
 from datetime import timedelta
 import json
 import enum
+from trello import TrelloClient
 
 from flask import render_template, redirect, url_for, abort, request, jsonify, flash
 from app.forms import TestCycleForm, TestItemForm, TestItemUpdateForm, TestCycleUpdateForm
@@ -39,7 +40,7 @@ def to_json(data):
 
 def get_db_connection():
     dbpath = app.root_path + '\\db\\' + app.config['DB_NAME']
-    #print(dbpath)
+    # print(dbpath)
     conn = sqlite3.connect(dbpath)
     conn.row_factory = sqlite3.Row
     return conn
@@ -82,7 +83,6 @@ def testcycle(testcycleid):
     return render_template('testpage.html', title='Test Cycle', row=row, test_row=test_row)
 
 
-
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template("404.html", title='Home'), 404
@@ -98,10 +98,9 @@ def test(testid):
     # print(row)
     if row is None:
         abort(404)
-    #print(row['conversationid'])
+    # print(row['conversationid'])
     conn.close()
     return render_template('testitem.html', title='Test Item', row=row)
-
 
 
 @app.route('/createtestcycle', methods=['GET', 'POST'])
@@ -109,7 +108,7 @@ def createtestcycle():
     form = TestCycleForm()
     if request.method == 'POST':
         print(form.testcyclename.data)
-        #flash('Data from the form: testname {}, testdesc={}'.format(
+        # flash('Data from the form: testname {}, testdesc={}'.format(
         #    form.testcyclename.data, form.testcycledesc.data))
         # if form.testcycleimage.data:
         #    filename = secure_filename(form.testcycleimage.data.filename)
@@ -131,8 +130,8 @@ def createtestcycle():
         conn.commit()
         last_id = cur.lastrowid
         print(last_id)
-        #flash('Data Successfully Inserted with ID {}'.format(last_id))
-        #flash('Creating Folder for Test Cycle: {}'.format(last_id))
+        # flash('Data Successfully Inserted with ID {}'.format(last_id))
+        # flash('Creating Folder for Test Cycle: {}'.format(last_id))
         target_directory = app.config['TESTCYCLE_PREFIX'] + str(last_id)
         print(target_directory)
         parent_directory = app.static_folder + '\\uploads\\'
@@ -142,11 +141,12 @@ def createtestcycle():
         try:
             # os.makedirs(path, mode, exist_ok=True)
             os.mkdir(path, mode)
-            #flash('Directory Created {}'.format(path))
+            # flash('Directory Created {}'.format(path))
             if filename:
                 form.testcycleimage.data.save(path + '\\' + filename)
                 filepath = 'uploads/' + app.config['TESTCYCLE_PREFIX'] + str(last_id) + '/' + filename
-                cur.execute("update TestCycle set imageurl=?,lasupdate=? where testcycleid=?", [filepath, int(t.time()), last_id])
+                cur.execute("update TestCycle set imageurl=?,lasupdate=? where testcycleid=?",
+                            [filepath, int(t.time()), last_id])
                 conn.commit()
         except OSError as error:
             flash("Directory {} can not be created. Contact Administrator. Error message: {}".format(path, error))
@@ -158,8 +158,8 @@ def createtestcycle():
         conn.close()
         # f = form.testcycleimage.data
         # filename = secure_filename(f.filename)
-        #flash('Redirecting to Home Page')
-        #time.sleep(5)
+        # flash('Redirecting to Home Page')
+        # time.sleep(5)
 
         return redirect(url_for('index'))
     return render_template('createtestcycle.html', title='Create Test Cycle', form=form)
@@ -176,7 +176,7 @@ def createtestitem(testcycleid):
         print(row['testcycleid'])
         if row is None:
             return redirect(url_for('index'))
-        conversationid=None
+        conversationid = None
         filename = secure_filename(form.testvideo.data.filename) if form.testvideo.data else None
         sqlstmt = "insert into Test ('testname','testdescription','testcycleid','lastupdate','createdate','testvideourl','conversationid') values(?,?,?,?,?,?,?);"
         data_tuple = (form.testitemname.data,
@@ -242,7 +242,7 @@ def edittestitem(testid):
                 os.makedirs(path, mode, exist_ok=True)
             form.testvideo.data.save(path + '\\' + filename)
             filepath = 'uploads/' + app.config['TESTITEM_PREFIX'] + str(row['testid']) + '/' + filename
-            conversationid=None
+            conversationid = None
             cur.execute("update Test set testvideourl=?,lastupdate=?,conversationid=? where testid=?",
                         [filepath, int(t.time()), conversationid, row['testid']])
             conn.commit()
@@ -268,9 +268,11 @@ def edittestcycle(testcycleid):
     row = cur.fetchone()
     if form.validate_on_submit():
         filename = secure_filename(form.testcycleimage.data.filename) if form.testcycleimage.data else None
-        #print(filename)
-        cur.execute("update TestCycle set testcyclename=?, description=?, project=?, projectdescription=?, trellolink=?, lastupdate=? where testcycleid=?",
-                    [form.testcyclename.data, form.testcycledesc.data, form.projectname.data, form.projectdesc.data,form.trellolink.data, int(t.time()), row['testcycleid']])
+        # print(filename)
+        cur.execute(
+            "update TestCycle set testcyclename=?, description=?, project=?, projectdescription=?, trellolink=?, lastupdate=? where testcycleid=?",
+            [form.testcyclename.data, form.testcycledesc.data, form.projectname.data, form.projectdesc.data,
+             form.trellolink.data, int(t.time()), row['testcycleid']])
         conn.commit()
         if filename:
             target_directory = app.config['TESTCYCLE_PREFIX'] + str(row['testcycleid'])
@@ -304,10 +306,10 @@ def edittestcycle(testcycleid):
 
 @app.route('/generatedata', methods=['GET', 'POST'])
 def generatedata():
-    #print(url_for('static'))
+    # print(url_for('static'))
     print(request.form['data'])
     print(request.form['generate_data'])
-    #print(request.args.get('testid'))
+    # print(request.args.get('testid'))
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("select * from Test where testid=?", [request.form['data']])
@@ -316,14 +318,14 @@ def generatedata():
     print(row['conversationid'])
     if request.method == 'POST':
         if row['conversationid'] is None or request.form['generate_data'] == 'true':
-            #print()
+            # print()
             target_directory = app.config['TESTITEM_PREFIX'] + str(row['testid']) + '\\'
-            #print(target_directory)
+            # print(target_directory)
             parent_directory = app.static_folder + '\\uploads\\'
-            #print(parent_directory)
+            # print(parent_directory)
             path = os.path.join(parent_directory, target_directory, row['testvideourl'].split('/')[-1])
             print(path)
-            #path = app.static_folder + '\\uploads\\' + app.config['TESTITEM_PREFIX'] + request.form[
+            # path = app.static_folder + '\\uploads\\' + app.config['TESTITEM_PREFIX'] + request.form[
             #    'data'] + '\\' + 'Telegram.mp4'
             local_path = r'{}'.format(path)
             conversation_object = symbl.Video.process_file(
@@ -340,10 +342,10 @@ def generatedata():
             questions = json.loads(to_json(conversation_object.get_questions().questions))
 
         else:
-            #pass
+            # pass
             message_list = symbl.Conversations.get_messages(conversation_id=row['conversationid'])
             topics_list = symbl.Conversations.get_topics(conversation_id=row['conversationid'])
-            #print(message_list)
+            # print(message_list)
             follow_ups = symbl.Conversations.get_follow_ups(conversation_id=row['conversationid'])
             action_items = symbl.Conversations.get_action_items(conversation_id=row['conversationid'])
             questions = symbl.Conversations.get_questions(conversation_id=row['conversationid'])
@@ -353,11 +355,33 @@ def generatedata():
             follow_ups = json.loads(to_json(follow_ups.follow_ups))
             questions = json.loads(to_json(questions.questions))
 
-    #print(message_list)
-    #print(topics_list)
+    # print(message_list)
+    # print(topics_list)
     cur.close()
     conn.close()
-    return jsonify({'messages': message_list, 'topics': topics_list, 'actions':action_items, 'follow_ups':follow_ups, 'questions':questions})
+    return jsonify({'messages': message_list, 'topics': topics_list, 'actions': action_items, 'follow_ups': follow_ups,
+                    'questions': questions})
 
 
+@app.route('/trelloexport', methods=['GET', 'POST'])
+def trelloexport():
+    if request.method == 'POST':
+        client = TrelloClient(app.config['TRELLO_API'], app.config['TRELLO_TOKEN'])
+        #print(request.form['data'])
+        board = client.get_board(app.config['BOARD_ID'])
+        target_list = board.get_list(app.config['LIST_ID'])
+        print(board)
+        print(target_list)
+        print(json.loads(request.form['data']))
+        for item in json.loads(request.form['data']):
+            print(item)
+            card_desc = "Trello cards are your portal to more organized work—where every " \
+                        "single part of your task can be managed, " \
+                        "tracked, and shared with teammates. Open any card to uncover " \
+                        "an ecosystem of checklists, due dates, attachments, " \
+                        "conversations, and more."
+            card_name = item
+            create_card = target_list.add_card(card_name, card_desc)
+        message = "Cards created successfully on Board {} and Lane {}".format(board.name, target_list.name)
 
+    return jsonify({'message': message})

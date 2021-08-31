@@ -4,11 +4,18 @@
 <script>
 $(document).ready(function(){
     console.log($("#generate").length)
+    var result = $('input[type="checkbox"]:checked');
+    console.log(result.length);
+
+
     if($("#generate").length){
         var test_id = $("#generate").data("test-id");
-        $('#insert_message_buttons').empty()
-        $('#insert_topic_buttons').empty()
+        $('#insert_message_buttons').empty();
+        $('#insert_topic_buttons').empty();
+        $("#body-tab-content").hide();
+        $("#loading").html('<img src="/static/images/Spin.gif" align="absmiddle"> Loading Results...');
         $("#generate").attr('disabled', true);
+        $("#trelloexport").attr('disabled', true);
         console.log(test_id)
         $.ajax({
                 type: "POST",
@@ -17,41 +24,45 @@ $(document).ready(function(){
                 data: {"data":test_id, "generate_data":false},
                 cache: false,
                 success: function(data){
-                    $('#insert_message_buttons').show()
-                    $('#insert_topic_buttons').show()
+                    $("#body-tab-content").show();
+                    $("#loading").hide();
+                    $('#insert_message_buttons').show();
+                    $('#insert_topic_buttons').show();
                     $("#generate").attr('disabled', false);
+                    $("#trelloexport").attr('disabled', false);
                     console.log(data)
                     console.log(data.messages);
                     console.log(data.topics)
                     $.each( data.messages, function( index, value ){
                             console.log(value._text);
                             $('#insert_message_buttons').append('<label class="btn btn-outline-success check_button" id="'+value._id+
-                                    '><input type="checkbox" autocomplete="off" data-checked=false>'+value._text+'</label>');
+                                    '"><input type="checkbox" class="checkbox_trello" autocomplete="off" data-checked=false id="'+value._text+'"> '+value._text+'</label>');
                      });
                     $.each( data.topics, function( index, value ){
                             console.log(value._text);
                             $('#insert_topic_buttons').append('<label class="btn btn-outline-success check_button" id="'+value._id+
-                                    '><input type="checkbox" autocomplete="off" data-checked=false>'+value._text+'</label>');
+                                    '"><input type="checkbox" class="checkbox_trello" autocomplete="off" data-checked=false id="'+value._text+'"> '+value._text+'</label>');
                     });
                     $.each( data.actions, function( index, value ){
                     console.log(value._text);
                     $('#insert_action_buttons').append('<label class="btn btn-outline-success check_button" id="'+value._id+
-                                    '><input type="checkbox" autocomplete="off" data-checked=false>'+value._text+'</label>');
+                                    '"><input type="checkbox" class="checkbox_trello" autocomplete="off" data-checked=false id="'+value._text+'"> '+value._text+'</label>');
                     });
                     $.each( data.follow_ups, function( index, value ){
                     console.log(value._text);
                     $('#insert_followup_buttons').append('<label class="btn btn-outline-success check_button" id="'+value._id+
-                                    '><input type="checkbox" autocomplete="off" data-checked=false>'+value._text+'</label>');
+                                    '"><input type="checkbox" class="checkbox_trello" autocomplete="off" data-checked=false id="'+value._text+'"> '+value._text+'</label>');
                     });
                     $.each( data.questions, function( index, value ){
                     console.log(value._text);
                     $('#insert_question_buttons').append('<label class="btn btn-outline-success check_button" id="'+value._id+
-                                    '><input type="checkbox" autocomplete="off" data-checked=false>'+value._text+'</label>');
+                                    '"><input type="checkbox" class="checkbox_trello" autocomplete="off" data-checked=false id="'+value._text+'"> '+value._text+'</label>');
                     });
                 }
         });
    }
 });
+
 $(function(){
 
     $("#generate").click(function (){
@@ -60,13 +71,19 @@ $(function(){
         $('#insert_topic_buttons').empty()
         console.log(test_id);
         $("#generate").attr('disabled', true);
+        $("#trelloexport").attr('disabled', true);
+        $("#body-tab-content").hide();
+        $("#loading").show();
         $.ajax({
           type: "POST",
           url: "/generatedata",
           data: {"data":test_id, "generate_data":true},
           cache: false,
           success: function(data){
+              $("#body-tab-content").show();
+              $("#loading").hide();
               $("#generate").attr('disabled', false);
+              $("#trelloexport").attr('disabled', false);
               $('#insert_message_buttons').show()
               $('#insert_topic_buttons').show()
               console.log(data.messages);
@@ -74,36 +91,69 @@ $(function(){
               $.each( data.messages, function( index, value ){
                     console.log(value._text);
                     $('#insert_message_buttons').append('<label class="btn btn-outline-success check_button" id="'+value._id+
-                                    '><input type="checkbox" autocomplete="off" data-checked=false>'+value._text+'</label>');
+                                    '"><input type="checkbox" class="checkbox_trello" autocomplete="off" data-checked=false id="'+value._text+'"> '+value._text+'</label>');
               });
               $.each( data.topics, function( index, value ){
                     console.log(value._text);
                     $('#insert_topic_buttons').append('<label class="btn btn-outline-success check_button" id="'+value._id+
-                                    '><input type="checkbox" autocomplete="off" data-checked=false>'+value._text+'</label>');
+                                    '"><input type="checkbox" class="checkbox_trello" autocomplete="off" data-checked=false id="'+value._text+'"> '+value._text+'</label>');
               });
               $.each( data.actions, function( index, value ){
                     console.log(value._text);
                     $('#insert_action_buttons').append('<label class="btn btn-outline-success check_button" id="'+value._id+
-                                    '><input type="checkbox" autocomplete="off" data-checked=false>'+value._text+'</label>');
+                                    '"><input type="checkbox" class="checkbox_trello" autocomplete="off" data-checked=false id="'+value._text+'"> '+value._text+'</label>');
                     });
               $.each( data.follow_ups, function( index, value ){
                     console.log(value._text);
                     $('#insert_followup_buttons').append('<label class="btn btn-outline-success check_button" id="'+value._id+
-                                    '><input type="checkbox" autocomplete="off" data-checked=false>'+value._text+'</label>');
+                                    '"><input type="checkbox" class="checkbox_trello" autocomplete="off" data-checked=false id="'+value._text+'"> '+value._text+'</label>');
               });
               $.each( data.questions, function( index, value ){
                     console.log(value._text);
                     $('#insert_question_buttons').append('<label class="btn btn-outline-success check_button" id="'+value._id+
-                                    '><input type="checkbox" autocomplete="off" data-checked=false>'+value._text+'</label>');
+                                    '"><input type="checkbox" class="checkbox_trello" autocomplete="off" data-checked=false id="'+value._text+'"> '+value._text+'</label>');
               });
           }
         });
   });
 });
+
+$(function(){
+
+    $("#trelloexport").click(function (){
+
+            var result = $('input[type="checkbox"]:checked');
+            console.log(result.length);
+            var selected = [];
+            $('input[type="checkbox"]:checked').each(function() {
+                selected.push($(this).attr('id'));
+            });
+            console.log(selected)
+            var data = JSON.stringify(selected);
+            $("#body-tab-content").hide();
+            $("#loading").show();
+            $.ajax({
+                    type: "POST",
+                    url: "/trelloexport",
+                    data: {"data":data},
+                    cache: false,
+                    success: function(data){
+                           $('input[type="checkbox"]:checked').each(function() {
+                                $(this).prop('checked', false);
+                             });
+                             $("#body-tab-content").show();
+                             $("#loading").hide();
+                             $(this).parent().attr('class','btn btn-outline-success check_button');
+                             alert(data.message);
+                    }
+        });
+            });
+});
 </script>
 
 {% endblock %}
 {% block content %}
+    <div></div>
     <a href="{{ url_for('testcycle', testcycleid=row['testcycleid']) }}" class="btn btn-primary btn-sm active" role="button" aria-pressed="true">Go Back</a>
     {% if row['testvideourl'] %}
     <div class="text-center">
@@ -111,7 +161,9 @@ $(function(){
     </div>
     {% else %}
     <div class="text-center">
-        <p> Upload a video to get started</p>
+        <p> Upload a video to get started:
+            <a href="{{ url_for('edittestitem', testid=row['testid']) }}" class="btn btn-primary" role="button">Upload</a>
+        </p>
     </div>
     {% endif %}
 <hr>
@@ -150,10 +202,12 @@ $(function(){
     </ul>
   </div>
   <div class="card-body">
-      <div class="tab-content">
+      <div id="loading"></div>
+      <div class="tab-content" id="body-tab-content">
         <div id="messages" class="container tab-pane active"><br>
         <div id="insert_messages" class="scrollable" style="max-height: 400px">
             <div id="insert_message_buttons" class="btn-group-vertical" data-toggle="buttons">
+                <label class="btn btn-outline-success btn-block check_button" id="test_btn"><input type="checkbox" class="checkbox_trello" autocomplete="off" data-checked=false> Test Button</label>
             </div>
       </div>
       </div>
@@ -183,6 +237,9 @@ $(function(){
     </div>
   </div>
 </div>
+  <div class="card-footer">
+      <button type="button" class="btn btn-primary btn-sm" id="trelloexport">Export to Trello</button>
+  </div>
 </div>
 </div>
 
